@@ -1,4 +1,4 @@
-# My Carlini-Wagner attack for NIPS-2017 non-targeted attack competition (incomplete)
+# My Carlini-Wagner attack for NIPS-2017 non-targeted attack competition 
 
 It was the approach I'd have liked to do for the NIPS-2017 competition.
 But it wasn't possible during the competition: https://stackoverflow.com/questions/46502291/error-getting-inceptionv3-logits-in-tensorflow
