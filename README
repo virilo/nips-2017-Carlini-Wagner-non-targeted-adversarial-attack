@@ -1,47 +1,38 @@
-Corresponding code to the paper "Towards Evaluating the Robustness of Neural
-Networks" by Nicholas Carlini and David Wagner, at IEEE Symposium on Security &
-Privacy, 2017.
+# My Carlini-Wagner attack for NIPS-2017 non-targeted attack competition (incomplete)
 
-Implementations of the three attack algorithms in Tensorflow. It runs correctly
-on Python 3 (and probably Python 2 without many changes).
+It was the approach I'd have liked to do for the NIPS-2017 competition.
+But it wasn't possible during the competition: https://stackoverflow.com/questions/46502291/error-getting-inceptionv3-logits-in-tensorflow
+And finally, I ended up doing this solution https://github.com/virilo/nips-2017 
+the last day of the competition :-/
 
-To evaluate the robustness of a neural network, create a model class with a
-predict method that will run the prediction network *without softmax*.  The
-model should have variables 
-
-    model.image_size: size of the image (e.g., 28 for MNIST, 32 for CIFAR)
-    model.num_channels: 1 for greyscale, 3 for color images
-    model.num_labels: total number of valid labels (e.g., 10 for MNIST/CIFAR)
-
-Run the attacks with
-
-    from robust_attacks import CarliniL2
-    CarliniL2(sess, model).attack(inputs, targets)
-
-where inputs are a (batch x height x width x channels) tensor and targets are
-a (batch x classes) tensor. The L2 attack supports a batch_size paramater to
-run attacks in parallel. Each attack has many tunable hyper-paramaters. All
-are intuitive and strictly increase attack efficacy in one direction and are
-more efficient in the other direction.
-
-The following steps should be sufficient to get these attacks up and running on
-most Linux-based systems.
-
-sudo apt-get install python3-pip
-sudo pip3 install --upgrade pip
-sudo pip3 install pillow scipy numpy tensorflow-gpu keras h5py
-
-To create the MNIST/CIFAR models:
-
-python3 train_models.py
-
-To download the inception model:
-
-python3 setup_inception.py
-
-And finally to test the attacks
-
-python3 test_attack.py
+The idea was to decrease TAU to ensure a infinite norm lower or equal to the epsilon of 16 of 256 defined by the competition. 
+Once the infinite norm requisite was met, the next step would have been introducing the greater distance to the attacked image class mantaining the TAU value.
 
 
-This code is provided under the BSD 2-Clause, Copyright 2016 to Nicholas Carlini.
+
+
+li_attack.py
+
+	Changes the original file introducing a SAFETY_DISTANCE_K to ensure that the adversarial image has a better score than the original by a margin.
+
+
+sample_li_non_targeted_MNIST.py
+
+	Attack according to infinite norm to MNIST
+	It uses a SAFETY_DISTANCE_K of 0.2
+
+sample_li_non_targeted_Inception_V2.py
+
+	Just to test how to configure the attack for Inception_v2
+
+sample_li_non_targeted_Inception_V3.py
+
+	Incomplete.  I wasn't able to configure Inception_V3: 
+
+
+
+This code is a fork of the implementation of the attack in the paper "Towards Evaluating the Robustness of Neural Networks" by Nicholas Carlini and David Wagner.  Original code is the authors' implementation, provided under the BSD 2-Clause, Copyright 2016 to Nicholas Carlini.
+
+https://github.com/carlini/nn_robust_attacks
+
+Thanks the authors for the paper, result of their research, and the code.
