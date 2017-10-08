@@ -7,6 +7,17 @@
 
 import sys
 import tensorflow as tf
+
+def inspecciona(sess, hito=""):
+  try:
+    var=[v for v in tf.trainable_variables() if v.name == "InceptionV3/Conv2d_1a_3x3/weights:0"][0]
+#    z=str(var.eval(sess))
+    z=str(sess.run(var))
+    print(hito + " ---------1234qwerty")
+    print(z[:21])
+  except Exception as ex:
+    print(hito + " " + type(ex).__name__)
+    
 import numpy as np
 
 DECREASE_FACTOR = 0.9   # 0<f<1, rate at which we shrink tau; larger is more accurate
@@ -18,6 +29,33 @@ LARGEST_CONST = 2e+1    # the largest value of c to go up to before giving up
 REDUCE_CONST = False    # try to lower c each iteration; faster to set to false
 TARGETED = True         # should we target one specific class? or just be wrong?
 CONST_FACTOR = 2.0      # f>1, rate at which we increase constant, smaller better
+
+INITIAL_TAU=1.0
+INITIAL_TAU=2.0
+MIN_TAU=1./256
+MIN_TAU=0.2
+
+
+
+MIN_TAU=np.arctanh(MIN_TAU)
+print("INITIAL_TAU: ", INITIAL_TAU, " MIN_TAU: ", MIN_TAU)
+
+SAFETY_DISTANCE_K=0.2
+
+VERBOSE_TRAINING = False
+
+
+def show(img):
+    """
+    Show MNSIT digits in the console.
+    """
+    remap = "  .*#"+"#"*100
+    img = (img.flatten()+.5)*3
+    if len(img) != 784: return
+    print("START")
+    for i in range(28):
+        print("".join([remap[int(round(x))] for x in img[i*28:i*28+28]]))
+
 
 class CarliniLi:
     def __init__(self, sess, model,
@@ -65,6 +103,7 @@ class CarliniLi:
         self.grad = self.gradient_descent(sess, model)
 
     def gradient_descent(self, sess, model):
+        inspecciona(sess, "gradient_descent")
         def compare(x,y):
             if self.TARGETED:
                 return x == y
@@ -84,6 +123,7 @@ class CarliniLi:
         newimg = (tf.tanh(modifier + simg)/2)
         
         output = model.predict(newimg)
+        print("output:" ,output.__class__.__name__, "\n", output)
         orig_output = model.predict(tf.tanh(timg)/2)
     
         real = tf.reduce_sum((tlab)*output)
@@ -91,10 +131,10 @@ class CarliniLi:
     
         if self.TARGETED:
             # if targetted, optimize for making the other class most likely
-            loss1 = tf.maximum(0.0,other-real)
+            loss1 = tf.maximum(0.0,other-real+SAFETY_DISTANCE_K)
         else:
             # if untargeted, optimize for making this class least likely.
-            loss1 = tf.maximum(0.0,real-other)
+            loss1 = tf.maximum(0.0,real-other+SAFETY_DISTANCE_K)
 
         # sum up the losses
         loss2 = tf.reduce_sum(tf.maximum(0.0,tf.abs(newimg-tf.tanh(timg)/2)-tau))
@@ -107,9 +147,12 @@ class CarliniLi:
 
         end_vars = tf.global_variables()
         new_vars = [x for x in end_vars if x.name not in start_vars]
+        print("new_vars: ", str(new_vars))
         init = tf.variables_initializer(var_list=[modifier]+new_vars)
+        
     
         def doit(oimgs, labs, starts, tt, CONST):
+            inspecciona(sess, "doit")
             # convert to tanh-space
             imgs = np.arctanh(np.array(oimgs)*1.999999)
             starts = np.arctanh(np.array(starts)*1.999999)
@@ -125,10 +168,13 @@ class CarliniLi:
                                tau: tt,
                                simg: starts,
                                const: CONST}
-                    if step%(self.MAX_ITERATIONS//10) == 0:
-                        print(step,sess.run((loss,loss1,loss2),feed_dict=feed_dict))
+#                    if VERBOSE_TRAINING or step%(self.MAX_ITERATIONS//10) == 0:
+#                        print("step: ", step, ", tlab, loss,loss1,loss2: ", sess.run((tlab, loss,loss1,loss2),feed_dict=feed_dict))
 
                     # perform the update step
+#                    var=[v for v in tf.trainable_variables() if v.name == "InceptionV3/Conv2d_1a_3x3/weights:0"][0]
+#                    print(var.eval(sess))
+                    inspecciona(sess, "antes de sess.doit")
                     _, works = sess.run([train, loss], feed_dict=feed_dict)
     
                     # it worked
@@ -137,7 +183,7 @@ class CarliniLi:
                         works = compare(np.argmax(get), np.argmax(labs))
                         if works:
                             scores, origscores, nimg = sess.run((output,orig_output,newimg),feed_dict=feed_dict)
-                            l2s=np.square(nimg-np.tanh(imgs)/2).sum(axis=(1,2,3))
+#                            l2s=np.square(nimg-np.tanh(imgs)/2).sum(axis=(1,2,3))
                             
                             return scores, origscores, nimg, CONST
 
@@ -165,17 +211,23 @@ class CarliniLi:
 
         # the previous image
         prev = np.copy(img).reshape((1,self.model.image_size,self.model.image_size,self.model.num_channels))
-        tau = 1.0
+        tau = INITIAL_TAU
         const = self.INITIAL_CONST
         
-        while tau > 1./256:
+        while tau > MIN_TAU:
+            print("Tau:", tau)
             # try to solve given this tau value
             res = self.grad([np.copy(img)], [target], np.copy(prev), tau, const)
             if res == None:
                 # the attack failed, we return this as our final answer
+                print("the attack failed, we return this as our final answer")
                 return prev
     
             scores, origscores, nimg, const = res
+            if VERBOSE_TRAINING:
+              print("     scores: " , str(scores), "\n origscores: ", str(origscores), "\nnimg.shape: ", nimg.shape, "\nconst:",const)
+              print("nimg between [", np.min(nimg), ", ", np.max(nimg),"]")
+              print(" img between [", np.min(img), ", ", np.max(img),"]")
             if self.REDUCE_CONST: const /= 2
 
             # the attack succeeded, reduce tau and try again
@@ -185,7 +237,7 @@ class CarliniLi:
             if actualtau < tau:
                 tau = actualtau
     
-            print("Tau",tau)
+            print("Tau actualized to: ",tau)
 
             prev = nimg
             tau *= self.DECREASE_FACTOR
