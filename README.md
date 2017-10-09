@@ -2,7 +2,7 @@
 
 It was the approach I'd have liked to do for the NIPS-2017 competition.
 But it wasn't possible during the competition: https://stackoverflow.com/questions/46502291/error-getting-inceptionv3-logits-in-tensorflow
-And finally, I ended up doing this solution https://github.com/virilo/nips-2017 
+And finally, I ended up doing this solution https://github.com/virilo/nips-2017-non-targeted-adversarial-attack 
 the last day of the competition :-/
 
 The idea was to decrease TAU to ensure a infinite norm lower or equal to the epsilon of 16 of 256 defined by the competition. 
